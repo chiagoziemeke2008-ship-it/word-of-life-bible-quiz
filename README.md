@@ -28,3 +28,4 @@ Google Play developer registration is separate and paid. Check the current Play 
 - Choose and disclose a Bible translation. This prototype paraphrases questions and uses short references; it does not reproduce long copyrighted Bible passages.
 - Add your own publisher name, support email, privacy policy, screenshots, feature graphic, and app icon.
 - Add ads only through a compliant SDK and disclose ad-related data collection. This starter contains no ads.
+Deployment refresh – Word of Life Bible Quiz

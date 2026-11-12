@@ -1,0 +1,123 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#14251f">
+<meta name="description" content="A free Bible trivia game. Test your knowledge of Scripture with quick quizzes, levels and explanations.">
+<title>Word of Life — Bible Quiz</title>
+<link rel="manifest" href="manifest.webmanifest">
+<style>
+:root{--bg:#0d1714;--panel:#172722;--panel2:#20352d;--gold:#e7bd67;--cream:#fff8e8;--muted:#b8c6bd;--green:#76c69a;--red:#ef8b83}
+*{box-sizing:border-box}body{margin:0;background:radial-gradient(ellipse at top,#20392f 0%,var(--bg) 58%);color:var(--cream);font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;min-height:100vh}
+button{font:inherit;cursor:pointer} .wrap{width:min(760px,100%);margin:auto;padding:22px 16px 40px}
+header{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:22px}
+.brand{display:flex;align-items:center;gap:10px;font-weight:800;letter-spacing:.2px}.logo{width:42px;height:42px;border-radius:14px;background:linear-gradient(145deg,#f0ce83,#b47b35);display:grid;place-items:center;color:#18251e;font-size:23px;box-shadow:0 5px 18px #0005}
+.pill{border:1px solid #ffffff22;color:var(--muted);border-radius:99px;padding:7px 11px;font-size:12px}
+.hero{padding:24px 22px;border:1px solid #ffffff17;border-radius:24px;background:linear-gradient(135deg,#243d32,#172820);box-shadow:0 18px 50px #0003}
+.kicker{color:var(--gold);font-size:12px;font-weight:800;letter-spacing:1.8px;text-transform:uppercase}
+h1{font-size:clamp(32px,7vw,48px);line-height:1.03;margin:10px 0 12px;letter-spacing:-1.5px}.sub{color:var(--muted);line-height:1.55;margin:0 0 20px}
+.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:18px 0}
+.stat{background:#ffffff0c;border:1px solid #ffffff12;border-radius:16px;padding:12px}.stat strong{display:block;font-size:21px;color:var(--gold)}.stat span{font-size:11px;color:var(--muted)}
+.section-title{font-size:17px;margin:24px 0 12px}
+.categories{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}
+.cat{background:var(--panel);border:1px solid #ffffff16;border-radius:16px;padding:15px;text-align:left;color:var(--cream);transition:.15s}.cat:hover,.cat:focus{border-color:var(--gold);transform:translateY(-1px)}.cat b{display:block;margin:5px 0}.cat small{color:var(--muted)}.emoji{font-size:22px}
+.primary,.secondary{border:0;border-radius:14px;padding:14px 18px;font-weight:800}.primary{background:var(--gold);color:#1d241d;width:100%;box-shadow:0 6px 18px #0003}.secondary{background:#ffffff12;color:var(--cream);border:1px solid #ffffff20}
+.actions{display:flex;gap:10px;margin-top:16px}.actions>*{flex:1}
+.hidden{display:none!important}
+.topline{display:flex;justify-content:space-between;align-items:center;color:var(--muted);font-size:13px;margin:8px 0 12px}
+.progress{height:7px;background:#ffffff18;border-radius:99px;overflow:hidden;margin-bottom:22px}.bar{height:100%;background:var(--gold);width:0;transition:width .25s}
+.question-card{background:var(--panel);border:1px solid #ffffff17;border-radius:22px;padding:22px}
+.tag{display:inline-block;color:var(--gold);font-size:11px;font-weight:800;letter-spacing:1px;text-transform:uppercase;margin-bottom:12px}
+.question{font-size:clamp(21px,5vw,28px);line-height:1.25;margin:0 0 20px}
+.answers{display:grid;gap:10px}.answer{padding:14px 15px;text-align:left;background:var(--panel2);border:1px solid #ffffff16;border-radius:13px;color:var(--cream);display:flex;gap:12px;align-items:center}.letter{width:28px;height:28px;flex:none;border-radius:9px;background:#ffffff13;display:grid;place-items:center;font-weight:800;color:var(--gold)}.answer.correct{border-color:var(--green);background:#244a39}.answer.wrong{border-color:var(--red);background:#4a2928}.answer:disabled{cursor:default;opacity:1}
+.feedback{margin-top:15px;padding:13px 14px;border-radius:13px;background:#ffffff0d;color:var(--muted);line-height:1.5}.feedback strong{color:var(--cream)}
+.next{margin-top:14px}
+.result{text-align:center;padding:28px 22px;background:var(--panel);border:1px solid #ffffff17;border-radius:22px}.score{font-size:58px;font-weight:900;color:var(--gold);line-height:1.1;margin:12px 0}.verse{margin-top:22px;padding:16px;border-left:3px solid var(--gold);background:#ffffff09;text-align:left;color:var(--muted);line-height:1.5}.verse b{color:var(--gold);display:block;margin-bottom:5px}
+footer{text-align:center;color:#82958b;font-size:11px;margin-top:28px;line-height:1.5}
+@media(max-width:420px){.wrap{padding:16px 12px 30px}.hero{padding:20px 17px}.categories{gap:8px}.cat{padding:12px}.question-card{padding:18px}}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header><div class="brand"><div class="logo">✝</div><span>WORD OF LIFE</span></div><span class="pill">BIBLE QUIZ</span></header>
+<main>
+<section id="home">
+ <div class="hero"><div class="kicker">Learn • Remember • Grow</div><h1>How well do you know the Bible?</h1><p class="sub">Challenge yourself with Scripture questions, discover explanations and build your Bible knowledge one round at a time.</p>
+ <div class="stats"><div class="stat"><strong id="totalQ">40</strong><span>QUESTIONS</span></div><div class="stat"><strong>4</strong><span>TOPICS</span></div><div class="stat"><strong id="best">0</strong><span>BEST SCORE</span></div></div>
+ <button class="primary" onclick="startQuiz('All')">START A QUIZ →</button></div>
+ <h2 class="section-title">Choose a topic</h2>
+ <div class="categories">
+  <button class="cat" onclick="startQuiz('Old Testament')"><span class="emoji">📜</span><b>Old Testament</b><small>Stories, people and events</small></button>
+  <button class="cat" onclick="startQuiz('New Testament')"><span class="emoji">🕊️</span><b>New Testament</b><small>Jesus, disciples and church</small></button>
+  <button class="cat" onclick="startQuiz('People of the Bible')"><span class="emoji">👑</span><b>People of the Bible</b><small>Key biblical figures</small></button>
+  <button class="cat" onclick="startQuiz('Books & Teachings')"><span class="emoji">📖</span><b>Books & Teachings</b><small>Scripture and wisdom</small></button>
+ </div>
+ <p class="sub" style="margin-top:17px;font-size:12px">Each round has 10 questions. Choose an answer to see an explanation and Bible reference.</p>
+</section>
+<section id="game" class="hidden">
+ <div class="topline"><button class="secondary" onclick="goHome()">← Exit</button><span id="topicLabel">All topics</span><span id="counter">1 / 10</span></div>
+ <div class="progress"><div class="bar" id="bar"></div></div>
+ <div class="question-card"><span class="tag" id="qtag">QUESTION 1</span><h2 class="question" id="question"></h2><div class="answers" id="answers"></div><div id="feedback" class="feedback hidden"></div><button id="next" class="primary next hidden" onclick="nextQuestion()">NEXT QUESTION →</button></div>
+</section>
+<section id="result" class="hidden">
+ <div class="result"><div class="kicker">ROUND COMPLETE</div><h2 id="resultTitle">Well done!</h2><div class="score" id="score">0/10</div><p class="sub" id="resultText"></p><div class="stats"><div class="stat"><strong id="correctCount">0</strong><span>CORRECT</span></div><div class="stat"><strong id="percent">0%</strong><span>ACCURACY</span></div><div class="stat"><strong id="bestResult">0</strong><span>BEST SCORE</span></div></div><div class="verse"><b>Keep growing in the Word</b>“Your word is a lamp to my feet and a light to my path.” — Psalm 119:105 (ESV)</div><div class="actions"><button class="secondary" onclick="goHome()">HOME</button><button class="primary" onclick="startQuiz(lastTopic)">PLAY AGAIN</button></div></div>
+</section>
+</main>
+<footer>Word of Life Bible Quiz • Scripture references are provided for study.<br>For personal study and entertainment. Bible wording may differ by translation.</footer>
+</div>
+<script>
+const bank = [
+{c:"Old Testament",q:"What did God create on the first day?",o:["The sun and moon","Light","The oceans","Animals"],a:1,r:"Genesis 1:3 — God said, “Let there be light,” and there was light."},
+{c:"Old Testament",q:"Who built the ark before the great flood?",o:["Moses","Abraham","Noah","Isaac"],a:2,r:"Genesis 6:13–22 describes God instructing Noah to build the ark."},
+{c:"Old Testament",q:"What was the name of the garden where Adam and Eve lived?",o:["Gethsemane","Eden","Canaan","Shiloh"],a:1,r:"Genesis 2:8 says the Lord planted a garden in Eden."},
+{c:"Old Testament",q:"Who led the Israelites out of Egypt?",o:["Joshua","Aaron","Joseph","Moses"],a:3,r:"Exodus 3–14 tells how God called Moses to lead Israel out of Egypt."},
+{c:"Old Testament",q:"What food did God provide for the Israelites in the wilderness?",o:["Manna","Olives","Fish","Grapes"],a:0,r:"Exodus 16 describes the manna God provided in the wilderness."},
+{c:"Old Testament",q:"Which city had walls that fell after Israel marched around it?",o:["Jerusalem","Jericho","Bethlehem","Nineveh"],a:1,r:"Joshua 6 recounts the fall of Jericho."},
+{c:"Old Testament",q:"Who defeated Goliath with a sling and a stone?",o:["Saul","Jonathan","David","Solomon"],a:2,r:"1 Samuel 17 tells how David defeated Goliath."},
+{c:"Old Testament",q:"How many commandments did God give Moses on the stone tablets?",o:["Five","Ten","Twelve","Seven"],a:1,r:"The Ten Commandments are recorded in Exodus 20 and Deuteronomy 5."},
+{c:"Old Testament",q:"Which prophet was swallowed by a great fish?",o:["Elijah","Isaiah","Jeremiah","Jonah"],a:3,r:"Jonah 1:17 says the Lord provided a great fish to swallow Jonah."},
+{c:"Old Testament",q:"Who was known for extraordinary strength and long hair?",o:["Samson","Gideon","Boaz","Eli"],a:0,r:"Judges 13–16 describes Samson and the significance of his uncut hair."},
+{c:"New Testament",q:"In which town was Jesus born?",o:["Nazareth","Jerusalem","Bethlehem","Capernaum"],a:2,r:"Matthew 2:1 and Luke 2:4–7 identify Bethlehem as Jesus’ birthplace."},
+{c:"New Testament",q:"Who baptized Jesus?",o:["Peter","John the Baptist","Andrew","Nicodemus"],a:1,r:"Matthew 3:13–17 describes John baptizing Jesus in the Jordan."},
+{c:"New Testament",q:"How many apostles did Jesus appoint?",o:["Ten","Seven","Twelve","Fourteen"],a:2,r:"Luke 6:13 says Jesus chose twelve of his disciples and named them apostles."},
+{c:"New Testament",q:"What was Jesus’ first recorded sign in the Gospel of John?",o:["Healing a blind man","Walking on water","Feeding a crowd","Turning water into wine"],a:3,r:"John 2:1–11 records Jesus turning water into wine at Cana."},
+{c:"New Testament",q:"Who denied knowing Jesus three times?",o:["Peter","John","Thomas","Matthew"],a:0,r:"Luke 22:54–62 records Peter’s three denials."},
+{c:"New Testament",q:"Which disciple betrayed Jesus?",o:["James","Judas Iscariot","Philip","Bartholomew"],a:1,r:"Matthew 26:14–16 describes Judas agreeing to betray Jesus."},
+{c:"New Testament",q:"What happened on the third day after Jesus’ crucifixion?",o:["He travelled to Galilee","The temple was rebuilt","He rose from the dead","The disciples went to Egypt"],a:2,r:"Luke 24 records the discovery of the empty tomb and Jesus’ resurrection."},
+{c:"New Testament",q:"On which road did Saul encounter the risen Jesus?",o:["Road to Emmaus","Road to Jericho","Road to Bethlehem","Road to Damascus"],a:3,r:"Acts 9:1–9 describes Saul’s encounter on the road to Damascus."},
+{c:"New Testament",q:"What was the occupation of Matthew before following Jesus?",o:["Tax collector","Fisherman","Carpenter","Shepherd"],a:0,r:"Matthew 9:9 describes Jesus calling Matthew from the tax booth."},
+{c:"New Testament",q:"Which book comes immediately after the four Gospels?",o:["Romans","Acts","Hebrews","Revelation"],a:1,r:"In the New Testament order, Acts follows John."},
+{c:"People of the Bible",q:"Who was the mother of Samuel?",o:["Ruth","Elizabeth","Hannah","Martha"],a:2,r:"1 Samuel 1 tells how Hannah prayed for a son and gave Samuel to the Lord."},
+{c:"People of the Bible",q:"Which woman became queen of Persia and helped save her people?",o:["Esther","Deborah","Miriam","Abigail"],a:0,r:"The book of Esther tells how Queen Esther intervened for the Jewish people."},
+{c:"People of the Bible",q:"Who interpreted Pharaoh’s dreams in Egypt?",o:["Daniel","Joseph","Aaron","Nehemiah"],a:1,r:"Genesis 41 describes Joseph interpreting Pharaoh’s dreams."},
+{c:"People of the Bible",q:"Who was the first king of Israel?",o:["David","Solomon","Saul","Hezekiah"],a:2,r:"1 Samuel 10 describes Saul being publicly presented as Israel’s first king."},
+{c:"People of the Bible",q:"Who was Ruth’s mother-in-law?",o:["Rachel","Leah","Sarah","Naomi"],a:3,r:"Ruth 1 introduces Naomi as Ruth’s mother-in-law."},
+{c:"People of the Bible",q:"Which prophet challenged the prophets of Baal on Mount Carmel?",o:["Elijah","Elisha","Nathan","Hosea"],a:0,r:"1 Kings 18 records Elijah’s challenge on Mount Carmel."},
+{c:"People of the Bible",q:"Who was the Roman governor who sentenced Jesus to be crucified?",o:["Herod Antipas","Pontius Pilate","Felix","Festus"],a:1,r:"Matthew 27:24–26 describes Pilate handing Jesus over to be crucified."},
+{c:"People of the Bible",q:"Which disciple is often called the “doubting” disciple?",o:["Andrew","James","Thomas","Jude"],a:2,r:"John 20:24–29 records Thomas asking to see the risen Jesus’ wounds."},
+{c:"People of the Bible",q:"Who climbed a sycamore tree to see Jesus?",o:["Bartimaeus","Lazarus","Nicodemus","Zacchaeus"],a:3,r:"Luke 19:1–10 tells the story of Zacchaeus in Jericho."},
+{c:"People of the Bible",q:"Who was the older brother of Moses?",o:["Caleb","Aaron","Joshua","Eleazar"],a:1,r:"Exodus 4:14 identifies Aaron as Moses’ brother."},
+{c:"Books & Teachings",q:"Which is the first book of the Bible?",o:["Exodus","Psalms","Genesis","Leviticus"],a:2,r:"Genesis is the opening book of the Bible."},
+{c:"Books & Teachings",q:"Which book contains many songs and prayers, including Psalm 23?",o:["Psalms","Proverbs","Job","Ecclesiastes"],a:0,r:"Psalm 23 is part of the book of Psalms."},
+{c:"Books & Teachings",q:"Who is traditionally associated with many of the Proverbs?",o:["Moses","Solomon","Isaiah","Luke"],a:1,r:"Proverbs 1:1 associates the collection with Solomon, son of David."},
+{c:"Books & Teachings",q:"What is the final book of the Bible?",o:["Jude","Acts","Hebrews","Revelation"],a:3,r:"Revelation is the final book in the Christian Bible."},
+{c:"Books & Teachings",q:"Which chapter is known as the “love chapter” in 1 Corinthians?",o:["8","10","13","15"],a:2,r:"1 Corinthians 13 describes the nature and importance of love."},
+{c:"Books & Teachings",q:"According to Jesus, what is the greatest commandment?",o:["Love the Lord your God","Never travel on the Sabbath","Build a temple","Give away every possession"],a:0,r:"Matthew 22:37–38 says to love the Lord your God with all your heart, soul and mind."},
+{c:"Books & Teachings",q:"Which fruit of the Spirit is listed first in Galatians 5:22?",o:["Joy","Love","Peace","Patience"],a:1,r:"Galatians 5:22 begins the fruit of the Spirit with love."},
+{c:"Books & Teachings",q:"In the Lord’s Prayer, what are believers taught to ask for each day?",o:["A long life","Earthly riches","Daily bread","Victory over enemies"],a:2,r:"Matthew 6:11 includes the request, “Give us this day our daily bread.”"},
+{c:"Books & Teachings",q:"Which Gospel begins with the words “In the beginning was the Word”?",o:["Matthew","Mark","Luke","John"],a:3,r:"John 1:1 opens with “In the beginning was the Word.”"},
+{c:"Books & Teachings",q:"What does Romans 6:23 say is the gift of God?",o:["Eternal life in Christ Jesus","Earthly wealth","A life without hardship","A position of power"],a:0,r:"Romans 6:23 contrasts sin’s wages with God’s gift of eternal life in Christ Jesus."}
+];
+let pool=[],round=[],index=0,score=0,locked=false,lastTopic="All";
+const $=id=>document.getElementById(id);
+function startQuiz(topic){lastTopic=topic;pool=topic==="All"?[...bank]:bank.filter(x=>x.c===topic);round=pool.sort(()=>Math.random()-.5).slice(0,10);index=0;score=0;locked=false;$("home").classList.add("hidden");$("result").classList.add("hidden");$("game").classList.remove("hidden");$("topicLabel").textContent=topic==="All"?"All topics":topic;showQuestion()}
+function showQuestion(){locked=false;let q=round[index];$("counter").textContent=(index+1)+" / "+round.length;$("qtag").textContent="QUESTION "+(index+1)+" • "+q.c.toUpperCase();$("question").textContent=q.q;$("bar").style.width=(index/round.length*100)+"%";$("feedback").classList.add("hidden");$("next").classList.add("hidden");$("answers").innerHTML="";q.o.forEach((option,i)=>{let b=document.createElement("button");b.className="answer";b.innerHTML='<span class="letter">'+String.fromCharCode(65+i)+'</span><span></span>';b.querySelector("span:last-child").textContent=option;b.onclick=()=>choose(i);$("answers").appendChild(b)})}
+function choose(choice){if(locked)return;locked=true;let q=round[index],buttons=[...$("answers").children];buttons.forEach((b,i)=>{b.disabled=true;if(i===q.a)b.classList.add("correct");else if(i===choice)b.classList.add("wrong")});if(choice===q.a)score++;$("feedback").innerHTML="<strong>"+(choice===q.a?"That’s right!":"Not quite — keep learning!")+"</strong><br>"+q.r;$("feedback").classList.remove("hidden");$("next").classList.remove("hidden");$("next").textContent=index===round.length-1?"SEE MY RESULTS →":"NEXT QUESTION →"}
+function nextQuestion(){index++;if(index<round.length)showQuestion();else finish()}
+function finish(){ $("game").classList.add("hidden");$("result").classList.remove("hidden");let best=Number(localStorage.getItem("wolBest")||0);if(score>best){best=score;localStorage.setItem("wolBest",best)}$("score").textContent=score+"/"+round.length;$("correctCount").textContent=score;$("percent").textContent=Math.round(score/round.length*100)+"%";$("bestResult").textContent=best;$("best").textContent=best;$("resultTitle").textContent=score>=9?"Outstanding!":score>=7?"Great work!":score>=5?"Good effort!":"Keep growing!";$("resultText").textContent=score+" out of "+round.length+" correct. Read the references and try another round to improve your score.";$("bar").style.width="100%"}
+function goHome(){$("game").classList.add("hidden");$("result").classList.add("hidden");$("home").classList.remove("hidden")}
+$("totalQ").textContent=bank.length;$("best").textContent=Number(localStorage.getItem("wolBest")||0);
+if("serviceWorker" in navigator && location.protocol.startsWith("http"))navigator.serviceWorker.register("./sw.js").catch(()=>{});
+</script>
+</body></html>

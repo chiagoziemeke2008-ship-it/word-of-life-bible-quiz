@@ -1,0 +1,44 @@
+plugins {
+    id "com.android.application"
+}
+
+android {
+    namespace "com.wordoflife.biblequiz"
+    compileSdk 36
+
+    defaultConfig {
+        applicationId "com.wordoflife.biblequiz"
+        minSdk 23
+        targetSdk 36
+        versionCode 1
+        versionName "1.0.0"
+    }
+
+    buildTypes {
+        debug {
+            applicationIdSuffix ".debug"
+            versionNameSuffix "-debug"
+        }
+        release {
+            minifyEnabled false
+            // Release output is built unsigned until a private upload key is configured.
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+}
+
+// Copy the current game directly into the APK. The installed Android app does not
+// load the live GitHub Pages website and therefore keeps working without internet.
+tasks.register("syncGameAssets", Copy) {
+    from(rootProject.file("../index.html"))
+    into(layout.projectDirectory.dir("src/main/assets/www"))
+    rename { "index.html" }
+}
+
+tasks.named("preBuild").configure {
+    dependsOn("syncGameAssets")
+}

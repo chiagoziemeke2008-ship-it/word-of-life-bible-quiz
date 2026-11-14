@@ -10,8 +10,8 @@ android {
         applicationId "com.wordoflife.biblequiz"
         minSdk 24
         targetSdk 36
-        versionCode 2
-        versionName "1.1.0"
+        versionCode 3
+        versionName "1.2.0"
     }
 
     buildTypes {
@@ -33,7 +33,7 @@ android {
 
 dependencies {
     // Google Mobile Ads Next-Gen SDK.
-    implementation "com.google.android.libraries.ads.mobile.sdk:ads-mobile-sdk:1.5.0"
+    implementation "com.google.android.libraries.ads.mobile.sdk:ads-mobile-sdk:1.6.0"
 }
 
 // Copy the current game directly into the APK. The installed Android app does not

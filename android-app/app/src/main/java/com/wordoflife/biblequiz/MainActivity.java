@@ -35,11 +35,12 @@ public class MainActivity extends Activity {
     private static final String TEST_INTERSTITIAL_AD_UNIT_ID =
             "ca-app-pub-3940256099942544/1033173712";
 
-    private static final String AD_PREFS = "word_of_life_ad_state";
+    private static final String AD_PREFS = "word_of_life_ad_state_v2";
     private static final String COMPLETED_LEVELS_KEY = "completed_levels";
     private static final int LEVELS_PER_INTERSTITIAL = 2;
 
     private WebView gameView;
+    private int pendingInterstitials = 0;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -99,6 +100,8 @@ public class MainActivity extends Activity {
             @Override
             public void onAdPreloaded(String preloadId, ResponseInfo responseInfo) {
                 Log.d(TAG, "Test interstitial preloaded.");
+                // If a level break happened before the ad finished loading, show it now.
+                runOnUiThread(MainActivity.this::showInterstitialIfAvailable);
             }
 
             @Override
@@ -120,18 +123,19 @@ public class MainActivity extends Activity {
     }
 
     private void showInterstitialIfAvailable() {
-        if (isFinishing()) {
+        if (isFinishing() || pendingInterstitials <= 0) {
             return;
         }
 
         InterstitialAd ad = InterstitialAdPreloader.pollAd(TEST_INTERSTITIAL_AD_UNIT_ID);
         if (ad == null) {
-            // No ad was available (for example, no connection or no ad fill).
-            // The player can continue; the next ad is still preloaded by the SDK.
-            Log.d(TAG, "No test interstitial was available at the level break.");
+            // Keep the request pending. The preload callback retries display as soon as
+            // an ad becomes available instead of silently dropping the level-break ad.
+            Log.d(TAG, "Interstitial is still loading; keeping the level-break ad pending.");
             return;
         }
 
+        pendingInterstitials--;
         ad.setAdEventCallback(new InterstitialAdEventCallback() {
             @Override
             public void onAdImpression() {
@@ -158,7 +162,10 @@ public class MainActivity extends Activity {
 
             // Count passed levels only. Show a full-screen ad after each pair.
             if (completedLevels % LEVELS_PER_INTERSTITIAL == 0) {
-                runOnUiThread(MainActivity.this::showInterstitialIfAvailable);
+                runOnUiThread(() -> {
+                    pendingInterstitials++;
+                    showInterstitialIfAvailable();
+                });
             }
         }
     }

@@ -29,6 +29,8 @@ import com.google.android.libraries.ads.mobile.sdk.rewarded.RewardedAd;
 import com.google.android.libraries.ads.mobile.sdk.rewarded.RewardedAdEventCallback;
 import com.google.android.libraries.ads.mobile.sdk.rewarded.OnUserEarnedRewardListener;
 import com.google.android.libraries.ads.mobile.sdk.rewarded.RewardItem;
+import com.google.android.libraries.ads.mobile.sdk.interstitial.InterstitialAd;
+import com.google.android.libraries.ads.mobile.sdk.interstitial.InterstitialAdEventCallback;
 
 public class MainActivity extends Activity {
     private static final String TAG = "WordOfLifeAds";
@@ -39,10 +41,16 @@ public class MainActivity extends Activity {
             "ca-app-pub-3940256099942544~3347511713";
     private static final String TEST_REWARDED_AD_UNIT_ID =
             "ca-app-pub-3940256099942544/5224354917";
+    private static final String TEST_INTERSTITIAL_AD_UNIT_ID =
+            "ca-app-pub-3940256099942544/1033173712";
 
     private final Handler mainHandler = new Handler(Looper.getMainLooper());
     private WebView gameView;
     private RewardedAd rewardedAd;
+    private InterstitialAd interstitialAd;
+    private boolean interstitialLoadInProgress = false;
+    private int pendingLevelEndAds = 0;
+    private String interstitialStatusMessage = "Preparing end-of-level test ad…";
     private boolean adLoadInProgress = false;
     private boolean gamePageLoaded = false;
     private String adStatusMessage = "Preparing an optional rewarded test ad…";
@@ -82,6 +90,7 @@ public class MainActivity extends Activity {
             public void onPageFinished(WebView view, String url) {
                 gamePageLoaded = true;
                 updateWebRewardState();
+                updateWebInterstitialState();
             }
         });
         gameView.setWebChromeClient(new WebChromeClient());
@@ -103,8 +112,137 @@ public class MainActivity extends Activity {
                     Log.i(TAG, "Google Mobile Ads SDK initialization callback received.");
                     updateStatus("Google ad service initialized. Preparing a rewarded test ad…");
                     loadRewardedAd();
+                    loadInterstitialAd();
                 })
         ), "word-of-life-ads-init").start();
+    }
+
+    // Automatic full-screen interstitial shown at the end of each level.
+    // This is separate from the optional rewarded video that grants a hint.
+    private void loadInterstitialAd() {
+        if (isFinishing() || interstitialLoadInProgress || interstitialAd != null) {
+            return;
+        }
+
+        interstitialLoadInProgress = true;
+        setInterstitialStatus("Loading end-of-level test ad…");
+
+        InterstitialAd.load(
+                new AdRequest.Builder(TEST_INTERSTITIAL_AD_UNIT_ID).build(),
+                new AdLoadCallback<InterstitialAd>() {
+                    @Override
+                    public void onAdLoaded(@NonNull InterstitialAd ad) {
+                        runOnUiThread(() -> {
+                            interstitialLoadInProgress = false;
+                            interstitialAd = ad;
+                            Log.i(TAG, "Interstitial test ad loaded successfully.");
+                            setInterstitialStatus("End-of-level test ad is ready.");
+                            showPendingLevelEndAd();
+                        });
+                    }
+
+                    @Override
+                    public void onAdFailedToLoad(@NonNull LoadAdError error) {
+                        runOnUiThread(() -> {
+                            interstitialLoadInProgress = false;
+                            interstitialAd = null;
+                            String message = "End-of-level ad unavailable (code "
+                                    + error.getCode() + "): " + error.getMessage();
+                            Log.e(TAG, message);
+                            setInterstitialStatus(message);
+                            // Preserve a pending level-end request and retry later.
+                            mainHandler.postDelayed(() -> {
+                                if (!isFinishing() && interstitialAd == null) {
+                                    loadInterstitialAd();
+                                }
+                            }, 30000L);
+                        });
+                    }
+                }
+        );
+    }
+
+    private void queueLevelEndAd(int levelId) {
+        if (levelId < 1 || levelId > 100 || isFinishing()) {
+            return;
+        }
+        pendingLevelEndAds++;
+        Log.i(TAG, "Level " + levelId + " completed. Pending normal ads: "
+                + pendingLevelEndAds);
+        setInterstitialStatus("Level completed. Preparing the normal full-screen ad…");
+        showPendingLevelEndAd();
+        loadInterstitialAd();
+    }
+
+    private void showPendingLevelEndAd() {
+        if (isFinishing() || pendingLevelEndAds <= 0) {
+            return;
+        }
+        if (interstitialAd == null) {
+            setInterstitialStatus(interstitialLoadInProgress
+                    ? "Level completed. Waiting for the normal ad to load…"
+                    : "Level completed. Requesting the normal ad…");
+            loadInterstitialAd();
+            return;
+        }
+
+        InterstitialAd ad = interstitialAd;
+        interstitialAd = null;
+        pendingLevelEndAds--;
+        setInterstitialStatus("Showing the normal full-screen test ad…");
+
+        ad.setAdEventCallback(new InterstitialAdEventCallback() {
+            @Override
+            public void onAdShowedFullScreenContent() {
+                runOnUiThread(() ->
+                        setInterstitialStatus("Normal full-screen test ad is showing."));
+            }
+
+            @Override
+            public void onAdImpression() {
+                Log.i(TAG, "Interstitial test ad impression recorded.");
+            }
+
+            @Override
+            public void onAdDismissedFullScreenContent() {
+                runOnUiThread(() -> {
+                    setInterstitialStatus("Normal ad closed. Preparing the next one…");
+                    loadInterstitialAd();
+                });
+            }
+
+            @Override
+            public void onAdFailedToShowFullScreenContent(
+                    @NonNull FullScreenContentError error) {
+                runOnUiThread(() -> {
+                    String message = "Normal ad could not be shown: " + error.getMessage();
+                    Log.e(TAG, message);
+                    setInterstitialStatus(message);
+                    loadInterstitialAd();
+                });
+            }
+        });
+
+        ad.show(this);
+    }
+
+    private void setInterstitialStatus(String message) {
+        interstitialStatusMessage = message;
+        updateWebInterstitialState();
+    }
+
+    private void updateWebInterstitialState() {
+        if (gameView == null || !gamePageLoaded) {
+            return;
+        }
+
+        String script = "if(window.setInterstitialAdState){window.setInterstitialAdState("
+                + JSONObject.quote(interstitialStatusMessage) + ");}";
+        gameView.post(() -> {
+            if (gameView != null) {
+                gameView.evaluateJavascript(script, null);
+            }
+        });
     }
 
     private void loadRewardedAd() {
@@ -228,11 +366,19 @@ public class MainActivity extends Activity {
         gameView.post(() -> {
             if (gameView != null) {
                 gameView.evaluateJavascript(script, null);
+                String interstitialScript = "if(window.setInterstitialAdState){window.setInterstitialAdState("
+                        + JSONObject.quote(interstitialStatusMessage) + ");}";
+                gameView.evaluateJavascript(interstitialScript, null);
             }
         });
     }
 
     private final class AdsBridge {
+        @JavascriptInterface
+        public void onLevelCompleted(int levelId) {
+            runOnUiThread(() -> queueLevelEndAd(levelId));
+        }
+
         @JavascriptInterface
         public void showRewardedAd() {
             runOnUiThread(MainActivity.this::showRewardedAd);

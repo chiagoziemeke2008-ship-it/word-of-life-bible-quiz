@@ -3,11 +3,12 @@
   "name": "Word of Life — Bible Quiz",
   "short_name": "Word of Life",
   "description": "A Bible quiz journey with 100 unlockable levels, Scripture questions and progress tracking.",
+  "id": "./",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
   "background_color": "#0d1714",
-  "theme_color": "#14251f",
+  "theme_color": "#0d1714",
   "orientation": "portrait",
   "icons": [
     {

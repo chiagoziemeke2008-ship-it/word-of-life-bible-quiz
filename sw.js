@@ -1,4 +1,4 @@
-const CACHE_NAME = 'word-of-life-v5';
+const CACHE_NAME = 'word-of-life-v6';
 const FILES_TO_CACHE = [
   './',
   './index.html',

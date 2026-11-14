@@ -5,6 +5,8 @@ import android.content.SharedPreferences;
 import android.graphics.Color;
 import android.os.Build;
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.Looper;
 import android.util.Log;
 import android.view.View;
 import android.view.Window;
@@ -14,33 +16,42 @@ import android.webkit.WebSettings;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
 
+import androidx.annotation.NonNull;
+
+import org.json.JSONObject;
+
 import com.google.android.libraries.ads.mobile.sdk.MobileAds;
 import com.google.android.libraries.ads.mobile.sdk.initialization.InitializationConfig;
 import com.google.android.libraries.ads.mobile.sdk.common.AdRequest;
+import com.google.android.libraries.ads.mobile.sdk.common.AdLoadCallback;
 import com.google.android.libraries.ads.mobile.sdk.common.LoadAdError;
-import com.google.android.libraries.ads.mobile.sdk.common.PreloadCallback;
-import com.google.android.libraries.ads.mobile.sdk.common.PreloadConfiguration;
-import com.google.android.libraries.ads.mobile.sdk.common.ResponseInfo;
+import com.google.android.libraries.ads.mobile.sdk.common.FullScreenContentError;
 import com.google.android.libraries.ads.mobile.sdk.interstitial.InterstitialAd;
 import com.google.android.libraries.ads.mobile.sdk.interstitial.InterstitialAdEventCallback;
-import com.google.android.libraries.ads.mobile.sdk.interstitial.InterstitialAdPreloader;
 
 public class MainActivity extends Activity {
     private static final String TAG = "WordOfLifeAds";
 
-    // Google's official demo IDs are used for testing only.
-    // Replace both with this app's real AdMob IDs before public release.
+    // Google's official AdMob Android test IDs. These do NOT generate revenue.
+    // Replace them with the app ID and interstitial ad unit ID from your AdMob account
+    // only after testing is complete and the app is ready for release.
     private static final String TEST_ADMOB_APP_ID =
             "ca-app-pub-3940256099942544~3347511713";
     private static final String TEST_INTERSTITIAL_AD_UNIT_ID =
             "ca-app-pub-3940256099942544/1033173712";
 
-    private static final String AD_PREFS = "word_of_life_ad_state_v2";
+    private static final String AD_PREFS = "word_of_life_ad_state_v3";
     private static final String COMPLETED_LEVELS_KEY = "completed_levels";
     private static final int LEVELS_PER_INTERSTITIAL = 2;
 
+    private final Handler mainHandler = new Handler(Looper.getMainLooper());
     private WebView gameView;
+    private InterstitialAd interstitialAd;
+    private boolean adLoadInProgress = false;
+    private boolean adIsShowing = false;
+    private boolean gamePageLoaded = false;
     private int pendingInterstitials = 0;
+    private String adStatusMessage = "Starting Google test ad service…";
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -72,11 +83,16 @@ public class MainActivity extends Activity {
             settings.setSafeBrowsingEnabled(true);
         }
 
-        gameView.setWebViewClient(new WebViewClient());
+        gameView.setWebViewClient(new WebViewClient() {
+            @Override
+            public void onPageFinished(WebView view, String url) {
+                gamePageLoaded = true;
+                renderAdStatus();
+            }
+        });
         gameView.setWebChromeClient(new WebChromeClient());
-
-        // Only the locally bundled game is loaded in this WebView.
         gameView.addJavascriptInterface(new AdsBridge(), "AndroidAds");
+
         setContentView(gameView);
         gameView.loadUrl("file:///android_asset/www/index.html");
 
@@ -84,65 +100,134 @@ public class MainActivity extends Activity {
     }
 
     private void initializeAds() {
-        // Google requires SDK initialization away from the UI thread.
+        setAdStatus("Starting Google test ad service…");
         new Thread(() -> MobileAds.initialize(
-                this,
+                getApplicationContext(),
                 new InitializationConfig.Builder(TEST_ADMOB_APP_ID).build(),
-                initializationStatus -> runOnUiThread(this::startInterstitialPreloading)
+                initializationStatus -> runOnUiThread(() -> {
+                    setAdStatus("Google ad service initialized. Loading a test ad…");
+                    loadInterstitial();
+                })
         ), "word-of-life-ads-init").start();
     }
 
-    private void startInterstitialPreloading() {
-        AdRequest request = new AdRequest.Builder(TEST_INTERSTITIAL_AD_UNIT_ID).build();
-        PreloadConfiguration configuration = new PreloadConfiguration(request);
+    // Uses Google's documented single-load API rather than polling the preload cache.
+    private void loadInterstitial() {
+        if (isFinishing() || adLoadInProgress || interstitialAd != null) {
+            return;
+        }
 
-        PreloadCallback callback = new PreloadCallback() {
-            @Override
-            public void onAdPreloaded(String preloadId, ResponseInfo responseInfo) {
-                Log.d(TAG, "Test interstitial preloaded.");
-                // If a level break happened before the ad finished loading, show it now.
-                runOnUiThread(MainActivity.this::showInterstitialIfAvailable);
-            }
+        adLoadInProgress = true;
+        setAdStatus("Loading Google's test advertisement…");
 
-            @Override
-            public void onAdFailedToPreload(String preloadId, LoadAdError error) {
-                Log.w(TAG, "Interstitial preload failed: " + error.getMessage());
-            }
+        InterstitialAd.load(
+                new AdRequest.Builder(TEST_INTERSTITIAL_AD_UNIT_ID).build(),
+                new AdLoadCallback<InterstitialAd>() {
+                    @Override
+                    public void onAdLoaded(@NonNull InterstitialAd ad) {
+                        runOnUiThread(() -> {
+                            adLoadInProgress = false;
+                            interstitialAd = ad;
+                            Log.i(TAG, "Google test interstitial loaded successfully.");
+                            if (pendingInterstitials > 0) {
+                                showPendingInterstitial();
+                            } else {
+                                setAdStatus("Test advertisement loaded. It will appear after 2 passed levels.");
+                            }
+                        });
+                    }
 
-            @Override
-            public void onAdsExhausted(String preloadId) {
-                Log.d(TAG, "Interstitial preload cache is empty.");
-            }
-        };
-
-        InterstitialAdPreloader.start(
-                TEST_INTERSTITIAL_AD_UNIT_ID,
-                configuration,
-                callback
+                    @Override
+                    public void onAdFailedToLoad(@NonNull LoadAdError error) {
+                        runOnUiThread(() -> {
+                            adLoadInProgress = false;
+                            String message = error.getMessage();
+                            Log.e(TAG, "Google test interstitial failed to load: " + message);
+                            setAdStatus("Google could not load the test ad: " + message);
+                            // Retry at a gentle interval. Never block the quiz when an ad is unavailable.
+                            mainHandler.postDelayed(() -> {
+                                if (!isFinishing() && interstitialAd == null) {
+                                    loadInterstitial();
+                                }
+                            }, 30000L);
+                        });
+                    }
+                }
         );
     }
 
-    private void showInterstitialIfAvailable() {
-        if (isFinishing() || pendingInterstitials <= 0) {
+    private void showPendingInterstitial() {
+        if (isFinishing() || adIsShowing || pendingInterstitials <= 0) {
             return;
         }
 
-        InterstitialAd ad = InterstitialAdPreloader.pollAd(TEST_INTERSTITIAL_AD_UNIT_ID);
-        if (ad == null) {
-            // Keep the request pending. The preload callback retries display as soon as
-            // an ad becomes available instead of silently dropping the level-break ad.
-            Log.d(TAG, "Interstitial is still loading; keeping the level-break ad pending.");
+        if (interstitialAd == null) {
+            setAdStatus(adLoadInProgress
+                    ? "Two levels passed. Waiting for the test ad to finish loading…"
+                    : "Two levels passed. Requesting a test ad…");
+            loadInterstitial();
             return;
         }
 
+        InterstitialAd adToShow = interstitialAd;
+        interstitialAd = null;
         pendingInterstitials--;
-        ad.setAdEventCallback(new InterstitialAdEventCallback() {
+        adIsShowing = true;
+
+        adToShow.setAdEventCallback(new InterstitialAdEventCallback() {
+            @Override
+            public void onAdShowedFullScreenContent() {
+                runOnUiThread(() -> setAdStatus("Test advertisement is showing."));
+            }
+
             @Override
             public void onAdImpression() {
-                Log.d(TAG, "Interstitial ad impression recorded.");
+                Log.i(TAG, "Google test interstitial impression recorded.");
+            }
+
+            @Override
+            public void onAdDismissedFullScreenContent() {
+                runOnUiThread(() -> {
+                    adIsShowing = false;
+                    setAdStatus("Test advertisement closed. Preparing the next one…");
+                    loadInterstitial();
+                });
+            }
+
+            @Override
+            public void onAdFailedToShowFullScreenContent(@NonNull FullScreenContentError error) {
+                runOnUiThread(() -> {
+                    adIsShowing = false;
+                    pendingInterstitials++;
+                    setAdStatus("Google loaded the test ad but could not show it: " + error.getMessage());
+                    loadInterstitial();
+                });
             }
         });
-        ad.show(this);
+
+        Log.i(TAG, "Showing Google test interstitial.");
+        adToShow.show(this);
+    }
+
+    private void setAdStatus(String message) {
+        adStatusMessage = message;
+        renderAdStatus();
+    }
+
+    private void renderAdStatus() {
+        if (gameView == null || !gamePageLoaded) {
+            return;
+        }
+        String quoted = JSONObject.quote(adStatusMessage);
+        gameView.post(() -> {
+            if (gameView != null) {
+                gameView.evaluateJavascript(
+                        "(function(){var e=document.getElementById('adStatus');if(e){e.textContent="
+                                + quoted + ";}})();",
+                        null
+                );
+            }
+        });
     }
 
     private final class AdsBridge {
@@ -152,21 +237,24 @@ public class MainActivity extends Activity {
                 return;
             }
 
-            SharedPreferences preferences =
-                    getSharedPreferences(AD_PREFS, MODE_PRIVATE);
-            int completedLevels =
-                    preferences.getInt(COMPLETED_LEVELS_KEY, 0) + 1;
-            preferences.edit()
-                    .putInt(COMPLETED_LEVELS_KEY, completedLevels)
-                    .apply();
+            // The web game calls this only when a level is passed, not on failed attempts.
+            runOnUiThread(() -> {
+                SharedPreferences preferences =
+                        getSharedPreferences(AD_PREFS, MODE_PRIVATE);
+                int completedLevels =
+                        preferences.getInt(COMPLETED_LEVELS_KEY, 0) + 1;
+                preferences.edit()
+                        .putInt(COMPLETED_LEVELS_KEY, completedLevels)
+                        .apply();
 
-            // Count passed levels only. Show a full-screen ad after each pair.
-            if (completedLevels % LEVELS_PER_INTERSTITIAL == 0) {
-                runOnUiThread(() -> {
+                if (completedLevels % LEVELS_PER_INTERSTITIAL == 0) {
                     pendingInterstitials++;
-                    showInterstitialIfAvailable();
-                });
-            }
+                    setAdStatus("Two levels passed. Preparing your full-screen test ad…");
+                    showPendingInterstitial();
+                } else {
+                    setAdStatus("Level passed. One more passed level until the next test ad.");
+                }
+            });
         }
     }
 
@@ -181,7 +269,7 @@ public class MainActivity extends Activity {
 
     @Override
     protected void onDestroy() {
-        InterstitialAdPreloader.destroy(TEST_INTERSTITIAL_AD_UNIT_ID);
+        mainHandler.removeCallbacksAndMessages(null);
         if (gameView != null) {
             gameView.stopLoading();
             gameView.destroy();

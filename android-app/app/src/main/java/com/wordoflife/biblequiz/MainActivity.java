@@ -100,6 +100,7 @@ public class MainActivity extends Activity {
                 getApplicationContext(),
                 new InitializationConfig.Builder(TEST_ADMOB_APP_ID).build(),
                 initializationStatus -> runOnUiThread(() -> {
+                    Log.i(TAG, "Google Mobile Ads SDK initialization callback received.");
                     updateStatus("Google ad service initialized. Preparing a rewarded test ad…");
                     loadRewardedAd();
                 })
@@ -123,7 +124,7 @@ public class MainActivity extends Activity {
                             adLoadInProgress = false;
                             rewardedAd = ad;
                             Log.i(TAG, "Rewarded test ad loaded successfully.");
-                            updateStatus("A rewarded test ad is ready. Tap Watch Ad to earn 1 hint.");
+                            updateStatus("TEST AD LOADED. Tap WATCH AD FOR 1 HINT.");
                         });
                     }
 
@@ -133,8 +134,8 @@ public class MainActivity extends Activity {
                             adLoadInProgress = false;
                             rewardedAd = null;
                             String message = error.getMessage();
-                            Log.e(TAG, "Rewarded test ad failed to load: " + message);
-                            updateStatus("Rewarded ad unavailable: " + message);
+                            Log.e(TAG, "Rewarded test ad failed to load (code " + error.getCode() + "): " + message);
+                            updateStatus("Rewarded ad unavailable (code " + error.getCode() + "): " + message);
                             // Retry later. The quiz remains fully playable if no ad is available.
                             mainHandler.postDelayed(() -> {
                                 if (!isFinishing() && rewardedAd == null) {
@@ -153,7 +154,9 @@ public class MainActivity extends Activity {
         }
 
         if (rewardedAd == null) {
-            updateStatus("The rewarded ad is not ready yet. Please try again shortly.");
+            updateStatus(adLoadInProgress
+                    ? "The test ad is still loading. Please try again in a moment."
+                    : "No test ad is ready. Requesting another test ad now…");
             loadRewardedAd();
             return;
         }
@@ -221,7 +224,7 @@ public class MainActivity extends Activity {
 
         boolean ready = rewardedAd != null;
         String script = "if(window.setRewardedAdState){window.setRewardedAdState("
-                + ready + "," + JSONObject.quote(adStatusMessage) + ");}";
+                + ready + "," + JSONObject.quote(adStatusMessage) + "," + adLoadInProgress + ");}";
         gameView.post(() -> {
             if (gameView != null) {
                 gameView.evaluateJavascript(script, null);

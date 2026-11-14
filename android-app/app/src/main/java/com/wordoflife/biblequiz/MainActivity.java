@@ -1,7 +1,6 @@
 package com.wordoflife.biblequiz;
 
 import android.app.Activity;
-import android.content.SharedPreferences;
 import android.graphics.Color;
 import android.os.Build;
 import android.os.Bundle;
@@ -26,32 +25,27 @@ import com.google.android.libraries.ads.mobile.sdk.common.AdRequest;
 import com.google.android.libraries.ads.mobile.sdk.common.AdLoadCallback;
 import com.google.android.libraries.ads.mobile.sdk.common.LoadAdError;
 import com.google.android.libraries.ads.mobile.sdk.common.FullScreenContentError;
-import com.google.android.libraries.ads.mobile.sdk.interstitial.InterstitialAd;
-import com.google.android.libraries.ads.mobile.sdk.interstitial.InterstitialAdEventCallback;
+import com.google.android.libraries.ads.mobile.sdk.rewarded.RewardedAd;
+import com.google.android.libraries.ads.mobile.sdk.rewarded.RewardedAdEventCallback;
+import com.google.android.libraries.ads.mobile.sdk.rewarded.OnUserEarnedRewardListener;
+import com.google.android.libraries.ads.mobile.sdk.rewarded.RewardItem;
 
 public class MainActivity extends Activity {
     private static final String TAG = "WordOfLifeAds";
 
-    // Google's official AdMob Android test IDs. These do NOT generate revenue.
-    // Replace them with the app ID and interstitial ad unit ID from your AdMob account
-    // only after testing is complete and the app is ready for release.
+    // Google's official demo app ID and rewarded test unit ID. Test ads never pay.
+    // Replace with the Word of Life app ID and rewarded unit ID from AdMob before release.
     private static final String TEST_ADMOB_APP_ID =
             "ca-app-pub-3940256099942544~3347511713";
-    private static final String TEST_INTERSTITIAL_AD_UNIT_ID =
-            "ca-app-pub-3940256099942544/1033173712";
-
-    private static final String AD_PREFS = "word_of_life_ad_state_v3";
-    private static final String COMPLETED_LEVELS_KEY = "completed_levels";
-    private static final int LEVELS_PER_INTERSTITIAL = 2;
+    private static final String TEST_REWARDED_AD_UNIT_ID =
+            "ca-app-pub-3940256099942544/5224354917";
 
     private final Handler mainHandler = new Handler(Looper.getMainLooper());
     private WebView gameView;
-    private InterstitialAd interstitialAd;
+    private RewardedAd rewardedAd;
     private boolean adLoadInProgress = false;
-    private boolean adIsShowing = false;
     private boolean gamePageLoaded = false;
-    private int pendingInterstitials = 0;
-    private String adStatusMessage = "Starting Google test ad service…";
+    private String adStatusMessage = "Preparing an optional rewarded test ad…";
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -87,12 +81,13 @@ public class MainActivity extends Activity {
             @Override
             public void onPageFinished(WebView view, String url) {
                 gamePageLoaded = true;
-                renderAdStatus();
+                updateWebRewardState();
             }
         });
         gameView.setWebChromeClient(new WebChromeClient());
-        gameView.addJavascriptInterface(new AdsBridge(), "AndroidAds");
 
+        // The rewarded video is only shown after the player taps the Watch Ad button.
+        gameView.addJavascriptInterface(new AdsBridge(), "AndroidAds");
         setContentView(gameView);
         gameView.loadUrl("file:///android_asset/www/index.html");
 
@@ -100,40 +95,35 @@ public class MainActivity extends Activity {
     }
 
     private void initializeAds() {
-        setAdStatus("Starting Google test ad service…");
+        updateStatus("Starting Google's rewarded test ad service…");
         new Thread(() -> MobileAds.initialize(
                 getApplicationContext(),
                 new InitializationConfig.Builder(TEST_ADMOB_APP_ID).build(),
                 initializationStatus -> runOnUiThread(() -> {
-                    setAdStatus("Google ad service initialized. Loading a test ad…");
-                    loadInterstitial();
+                    updateStatus("Google ad service initialized. Preparing a rewarded test ad…");
+                    loadRewardedAd();
                 })
         ), "word-of-life-ads-init").start();
     }
 
-    // Uses Google's documented single-load API rather than polling the preload cache.
-    private void loadInterstitial() {
-        if (isFinishing() || adLoadInProgress || interstitialAd != null) {
+    private void loadRewardedAd() {
+        if (isFinishing() || adLoadInProgress || rewardedAd != null) {
             return;
         }
 
         adLoadInProgress = true;
-        setAdStatus("Loading Google's test advertisement…");
+        updateStatus("Loading optional rewarded test ad…");
 
-        InterstitialAd.load(
-                new AdRequest.Builder(TEST_INTERSTITIAL_AD_UNIT_ID).build(),
-                new AdLoadCallback<InterstitialAd>() {
+        RewardedAd.load(
+                new AdRequest.Builder(TEST_REWARDED_AD_UNIT_ID).build(),
+                new AdLoadCallback<RewardedAd>() {
                     @Override
-                    public void onAdLoaded(@NonNull InterstitialAd ad) {
+                    public void onAdLoaded(@NonNull RewardedAd ad) {
                         runOnUiThread(() -> {
                             adLoadInProgress = false;
-                            interstitialAd = ad;
-                            Log.i(TAG, "Google test interstitial loaded successfully.");
-                            if (pendingInterstitials > 0) {
-                                showPendingInterstitial();
-                            } else {
-                                setAdStatus("Test advertisement loaded. It will appear after 2 passed levels.");
-                            }
+                            rewardedAd = ad;
+                            Log.i(TAG, "Rewarded test ad loaded successfully.");
+                            updateStatus("A rewarded test ad is ready. Tap Watch Ad to earn 1 hint.");
                         });
                     }
 
@@ -141,13 +131,14 @@ public class MainActivity extends Activity {
                     public void onAdFailedToLoad(@NonNull LoadAdError error) {
                         runOnUiThread(() -> {
                             adLoadInProgress = false;
+                            rewardedAd = null;
                             String message = error.getMessage();
-                            Log.e(TAG, "Google test interstitial failed to load: " + message);
-                            setAdStatus("Google could not load the test ad: " + message);
-                            // Retry at a gentle interval. Never block the quiz when an ad is unavailable.
+                            Log.e(TAG, "Rewarded test ad failed to load: " + message);
+                            updateStatus("Rewarded ad unavailable: " + message);
+                            // Retry later. The quiz remains fully playable if no ad is available.
                             mainHandler.postDelayed(() -> {
-                                if (!isFinishing() && interstitialAd == null) {
-                                    loadInterstitial();
+                                if (!isFinishing() && rewardedAd == null) {
+                                    loadRewardedAd();
                                 }
                             }, 30000L);
                         });
@@ -156,105 +147,92 @@ public class MainActivity extends Activity {
         );
     }
 
-    private void showPendingInterstitial() {
-        if (isFinishing() || adIsShowing || pendingInterstitials <= 0) {
+    private void showRewardedAd() {
+        if (isFinishing()) {
             return;
         }
 
-        if (interstitialAd == null) {
-            setAdStatus(adLoadInProgress
-                    ? "Two levels passed. Waiting for the test ad to finish loading…"
-                    : "Two levels passed. Requesting a test ad…");
-            loadInterstitial();
+        if (rewardedAd == null) {
+            updateStatus("The rewarded ad is not ready yet. Please try again shortly.");
+            loadRewardedAd();
             return;
         }
 
-        InterstitialAd adToShow = interstitialAd;
-        interstitialAd = null;
-        pendingInterstitials--;
-        adIsShowing = true;
+        RewardedAd ad = rewardedAd;
+        rewardedAd = null;
+        updateStatus("Opening the rewarded test ad…");
 
-        adToShow.setAdEventCallback(new InterstitialAdEventCallback() {
+        ad.setAdEventCallback(new RewardedAdEventCallback() {
             @Override
             public void onAdShowedFullScreenContent() {
-                runOnUiThread(() -> setAdStatus("Test advertisement is showing."));
+                runOnUiThread(() -> updateStatus("Rewarded test ad is playing…"));
             }
 
             @Override
             public void onAdImpression() {
-                Log.i(TAG, "Google test interstitial impression recorded.");
+                Log.i(TAG, "Rewarded test ad impression recorded.");
             }
 
             @Override
             public void onAdDismissedFullScreenContent() {
                 runOnUiThread(() -> {
-                    adIsShowing = false;
-                    setAdStatus("Test advertisement closed. Preparing the next one…");
-                    loadInterstitial();
+                    updateStatus("Ad closed. Preparing the next optional rewarded ad…");
+                    loadRewardedAd();
                 });
             }
 
             @Override
             public void onAdFailedToShowFullScreenContent(@NonNull FullScreenContentError error) {
                 runOnUiThread(() -> {
-                    adIsShowing = false;
-                    pendingInterstitials++;
-                    setAdStatus("Google loaded the test ad but could not show it: " + error.getMessage());
-                    loadInterstitial();
+                    String message = error.getMessage();
+                    Log.e(TAG, "Rewarded ad failed to show: " + message);
+                    updateStatus("Rewarded ad could not be shown: " + message);
+                    loadRewardedAd();
                 });
             }
         });
 
-        Log.i(TAG, "Showing Google test interstitial.");
-        adToShow.show(this);
+        ad.show(this, new OnUserEarnedRewardListener() {
+            @Override
+            public void onUserEarnedReward(@NonNull RewardItem rewardItem) {
+                runOnUiThread(() -> {
+                    Log.i(TAG, "User earned reward: "
+                            + rewardItem.getAmount() + " " + rewardItem.getType());
+                    if (gameView != null && gamePageLoaded) {
+                        gameView.evaluateJavascript(
+                                "if(window.onRewardedAdEarned){window.onRewardedAdEarned();}",
+                                null
+                        );
+                    }
+                });
+            }
+        });
     }
 
-    private void setAdStatus(String message) {
+    private void updateStatus(String message) {
         adStatusMessage = message;
-        renderAdStatus();
+        updateWebRewardState();
     }
 
-    private void renderAdStatus() {
+    private void updateWebRewardState() {
         if (gameView == null || !gamePageLoaded) {
             return;
         }
-        String quoted = JSONObject.quote(adStatusMessage);
+
+        boolean ready = rewardedAd != null;
+        String script = "if(window.setRewardedAdState){window.setRewardedAdState("
+                + ready + "," + JSONObject.quote(adStatusMessage) + ");}";
         gameView.post(() -> {
             if (gameView != null) {
-                gameView.evaluateJavascript(
-                        "(function(){var e=document.getElementById('adStatus');if(e){e.textContent="
-                                + quoted + ";}})();",
-                        null
-                );
+                gameView.evaluateJavascript(script, null);
             }
         });
     }
 
     private final class AdsBridge {
         @JavascriptInterface
-        public void onLevelPassed(int levelId) {
-            if (levelId < 1 || levelId > 100) {
-                return;
-            }
-
-            // The web game calls this only when a level is passed, not on failed attempts.
-            runOnUiThread(() -> {
-                SharedPreferences preferences =
-                        getSharedPreferences(AD_PREFS, MODE_PRIVATE);
-                int completedLevels =
-                        preferences.getInt(COMPLETED_LEVELS_KEY, 0) + 1;
-                preferences.edit()
-                        .putInt(COMPLETED_LEVELS_KEY, completedLevels)
-                        .apply();
-
-                if (completedLevels % LEVELS_PER_INTERSTITIAL == 0) {
-                    pendingInterstitials++;
-                    setAdStatus("Two levels passed. Preparing your full-screen test ad…");
-                    showPendingInterstitial();
-                } else {
-                    setAdStatus("Level passed. One more passed level until the next test ad.");
-                }
-            });
+        public void showRewardedAd() {
+            runOnUiThread(MainActivity.this::showRewardedAd);
         }
     }
 

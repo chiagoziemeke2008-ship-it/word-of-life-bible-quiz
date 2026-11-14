@@ -37,3 +37,11 @@ The Android app uses package ID `com.wordoflife.biblequiz`, keeps progress on th
 - Completing the rewarded ad grants one hint token. A hint removes two incorrect answer choices from one question.
 - During testing, the app uses Google's official rewarded test ad unit ID `ca-app-pub-3940256099942544/5224354917` and demo app ID. Test ads do not generate revenue.
 - Replace the demo app ID and rewarded ad unit ID with the real IDs from the Word of Life AdMob account before release. Google requires test ads during development.
+
+## Advertising formats
+
+- A normal full-screen interstitial test ad is requested automatically at the end of every completed level. It is separate from the rewarded offer.
+- An optional rewarded test video is offered on the results screen. The player must tap **Watch Ad** to earn one hint token; the video is never forced.
+- A hint token removes two incorrect choices from one question.
+- Testing uses Google's demo app ID `ca-app-pub-3940256099942544~3347511713`, interstitial test unit ID `ca-app-pub-3940256099942544/1033173712`, and rewarded test unit ID `ca-app-pub-3940256099942544/5224354917`. Test ads do not earn revenue.
+- Replace all demo IDs with the real Word of Life AdMob IDs before release. Keep test IDs during development.

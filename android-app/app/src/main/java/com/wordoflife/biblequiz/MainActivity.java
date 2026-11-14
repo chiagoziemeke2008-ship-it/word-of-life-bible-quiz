@@ -52,6 +52,7 @@ public class MainActivity extends Activity {
     private int pendingLevelEndAds = 0;
     private String interstitialStatusMessage = "Preparing end-of-level test ad…";
     private boolean adLoadInProgress = false;
+    private boolean pendingRewardedShow = false;
     private boolean gamePageLoaded = false;
     private String adStatusMessage = "Preparing an optional rewarded test ad…";
 
@@ -263,6 +264,10 @@ public class MainActivity extends Activity {
                             rewardedAd = ad;
                             Log.i(TAG, "Rewarded test ad loaded successfully.");
                             updateStatus("TEST AD LOADED. Tap WATCH AD FOR 1 HINT.");
+                            if (pendingRewardedShow) {
+                                pendingRewardedShow = false;
+                                showRewardedAd();
+                            }
                         });
                     }
 
@@ -273,7 +278,9 @@ public class MainActivity extends Activity {
                             rewardedAd = null;
                             String message = error.getMessage();
                             Log.e(TAG, "Rewarded test ad failed to load (code " + error.getCode() + "): " + message);
+                            pendingRewardedShow = false;
                             updateStatus("Rewarded ad unavailable (code " + error.getCode() + "): " + message);
+                            notifyRewardedAdUnavailable("Rewarded video unavailable right now. Please try again shortly.");
                             // Retry later. The quiz remains fully playable if no ad is available.
                             mainHandler.postDelayed(() -> {
                                 if (!isFinishing() && rewardedAd == null) {
@@ -292,13 +299,15 @@ public class MainActivity extends Activity {
         }
 
         if (rewardedAd == null) {
+            pendingRewardedShow = true;
             updateStatus(adLoadInProgress
-                    ? "The test ad is still loading. Please try again in a moment."
-                    : "No test ad is ready. Requesting another test ad now…");
+                    ? "The test ad is still loading. It will open automatically when ready."
+                    : "No test ad is ready. Loading it now; it will open automatically when ready…");
             loadRewardedAd();
             return;
         }
 
+        pendingRewardedShow = false;
         RewardedAd ad = rewardedAd;
         rewardedAd = null;
         updateStatus("Opening the rewarded test ad…");
@@ -317,6 +326,7 @@ public class MainActivity extends Activity {
             @Override
             public void onAdDismissedFullScreenContent() {
                 runOnUiThread(() -> {
+                    notifyRewardedAdClosed();
                     updateStatus("Ad closed. Preparing the next optional rewarded ad…");
                     loadRewardedAd();
                 });
@@ -327,6 +337,7 @@ public class MainActivity extends Activity {
                 runOnUiThread(() -> {
                     String message = error.getMessage();
                     Log.e(TAG, "Rewarded ad failed to show: " + message);
+                    notifyRewardedAdClosed();
                     updateStatus("Rewarded ad could not be shown: " + message);
                     loadRewardedAd();
                 });
@@ -348,6 +359,25 @@ public class MainActivity extends Activity {
                 });
             }
         });
+    }
+
+    private void notifyRewardedAdClosed() {
+        if (gameView != null && gamePageLoaded) {
+            gameView.evaluateJavascript(
+                    "if(window.onRewardedAdClosed){window.onRewardedAdClosed();}",
+                    null
+            );
+        }
+    }
+
+    private void notifyRewardedAdUnavailable(String message) {
+        if (gameView != null && gamePageLoaded) {
+            gameView.evaluateJavascript(
+                    "if(window.onRewardedAdUnavailable){window.onRewardedAdUnavailable("
+                            + JSONObject.quote(message) + ");}",
+                    null
+            );
+        }
     }
 
     private void updateStatus(String message) {

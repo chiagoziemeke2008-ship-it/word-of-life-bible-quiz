@@ -172,7 +172,7 @@ public class MainActivity extends Activity {
         };
         try {
             connectivityManager.registerDefaultNetworkCallback(networkCallback);
-        } catch (SecurityException | RuntimeException error) {
+        } catch (RuntimeException error) {
             Log.e(TAG, "Unable to monitor internet connection.", error);
         }
     }

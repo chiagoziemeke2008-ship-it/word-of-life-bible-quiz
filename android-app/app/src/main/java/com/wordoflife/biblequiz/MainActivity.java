@@ -7,8 +7,16 @@ import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
 import android.util.Log;
+import android.net.ConnectivityManager;
+import android.net.Network;
+import android.net.NetworkCapabilities;
+import android.view.Gravity;
 import android.view.View;
 import android.view.Window;
+import android.widget.Button;
+import android.widget.FrameLayout;
+import android.widget.LinearLayout;
+import android.widget.TextView;
 import android.webkit.JavascriptInterface;
 import android.webkit.WebChromeClient;
 import android.webkit.WebSettings;
@@ -45,6 +53,12 @@ public class MainActivity extends Activity {
             "ca-app-pub-3940256099942544/1033173712";
 
     private final Handler mainHandler = new Handler(Looper.getMainLooper());
+    private ConnectivityManager connectivityManager;
+    private ConnectivityManager.NetworkCallback networkCallback;
+    private FrameLayout appRoot;
+    private View offlinePanel;
+    private boolean gameStarted = false;
+    private boolean adsInitializationStarted = false;
     private WebView gameView;
     private RewardedAd rewardedAd;
     private InterstitialAd interstitialAd;
@@ -66,6 +80,8 @@ public class MainActivity extends Activity {
         window.setNavigationBarColor(deepGreen);
         window.setBackgroundDrawableResource(R.color.splash_background);
         window.getDecorView().setSystemUiVisibility(0);
+
+        connectivityManager = (ConnectivityManager) getSystemService(CONNECTIVITY_SERVICE);
 
         gameView = new WebView(this);
         gameView.setBackgroundColor(deepGreen);
@@ -98,10 +114,132 @@ public class MainActivity extends Activity {
 
         // The rewarded video is only shown after the player taps the Watch Ad button.
         gameView.addJavascriptInterface(new AdsBridge(), "AndroidAds");
-        setContentView(gameView);
-        gameView.loadUrl("file:///android_asset/www/index.html");
 
-        initializeAds();
+        appRoot = new FrameLayout(this);
+        appRoot.addView(gameView, new FrameLayout.LayoutParams(
+                FrameLayout.LayoutParams.MATCH_PARENT,
+                FrameLayout.LayoutParams.MATCH_PARENT
+        ));
+        offlinePanel = createOfflinePanel(deepGreen);
+        offlinePanel.setVisibility(View.GONE);
+        appRoot.addView(offlinePanel, new FrameLayout.LayoutParams(
+                FrameLayout.LayoutParams.MATCH_PARENT,
+                FrameLayout.LayoutParams.MATCH_PARENT
+        ));
+        setContentView(appRoot);
+
+        registerNetworkCallback();
+        refreshOnlineState();
+    }
+
+    // The game is deliberately unavailable without a validated internet connection.
+    private boolean hasValidatedInternet() {
+        if (connectivityManager == null) {
+            return false;
+        }
+        Network activeNetwork = connectivityManager.getActiveNetwork();
+        if (activeNetwork == null) {
+            return false;
+        }
+        NetworkCapabilities capabilities =
+                connectivityManager.getNetworkCapabilities(activeNetwork);
+        return capabilities != null
+                && capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
+                && capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED);
+    }
+
+    private void registerNetworkCallback() {
+        if (connectivityManager == null || networkCallback != null) {
+            return;
+        }
+        networkCallback = new ConnectivityManager.NetworkCallback() {
+            @Override
+            public void onAvailable(@NonNull Network network) {
+                mainHandler.postDelayed(MainActivity.this::refreshOnlineState, 300L);
+            }
+
+            @Override
+            public void onLost(@NonNull Network network) {
+                mainHandler.post(MainActivity.this::refreshOnlineState);
+            }
+
+            @Override
+            public void onCapabilitiesChanged(
+                    @NonNull Network network,
+                    @NonNull NetworkCapabilities capabilities) {
+                mainHandler.post(MainActivity.this::refreshOnlineState);
+            }
+        };
+        try {
+            connectivityManager.registerDefaultNetworkCallback(networkCallback);
+        } catch (SecurityException | RuntimeException error) {
+            Log.e(TAG, "Unable to monitor internet connection.", error);
+        }
+    }
+
+    private View createOfflinePanel(int backgroundColor) {
+        LinearLayout panel = new LinearLayout(this);
+        panel.setOrientation(LinearLayout.VERTICAL);
+        panel.setGravity(Gravity.CENTER);
+        int padding = (int) (28 * getResources().getDisplayMetrics().density);
+        panel.setPadding(padding, padding, padding, padding);
+        panel.setBackgroundColor(backgroundColor);
+
+        TextView symbol = new TextView(this);
+        symbol.setText("📶");
+        symbol.setTextSize(42);
+        symbol.setGravity(Gravity.CENTER);
+        panel.addView(symbol);
+
+        TextView title = new TextView(this);
+        title.setText("Internet connection required");
+        title.setTextColor(Color.rgb(255, 248, 232));
+        title.setTextSize(23);
+        title.setGravity(Gravity.CENTER);
+        title.setPadding(0, padding / 2, 0, padding / 3);
+        panel.addView(title);
+
+        TextView message = new TextView(this);
+        message.setText("Word of Life works online only. Connect to Wi-Fi or mobile data to play, then tap Try Again.");
+        message.setTextColor(Color.rgb(184, 198, 189));
+        message.setTextSize(15);
+        message.setGravity(Gravity.CENTER);
+        panel.addView(message);
+
+        Button retry = new Button(this);
+        retry.setText("TRY AGAIN");
+        retry.setOnClickListener(view -> refreshOnlineState());
+        LinearLayout.LayoutParams buttonParams = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.WRAP_CONTENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT
+        );
+        buttonParams.topMargin = padding;
+        panel.addView(retry, buttonParams);
+        return panel;
+    }
+
+    private void refreshOnlineState() {
+        if (isFinishing() || gameView == null || offlinePanel == null) {
+            return;
+        }
+        boolean online = hasValidatedInternet();
+        if (!online) {
+            gameView.setVisibility(View.GONE);
+            offlinePanel.setVisibility(View.VISIBLE);
+            return;
+        }
+
+        offlinePanel.setVisibility(View.GONE);
+        gameView.setVisibility(View.VISIBLE);
+
+        if (!gameStarted) {
+            gameStarted = true;
+            gameView.loadUrl("file:///android_asset/www/index.html");
+        }
+        if (!adsInitializationStarted) {
+            adsInitializationStarted = true;
+            initializeAds();
+        }
     }
 
     private void initializeAds() {
@@ -416,6 +554,12 @@ public class MainActivity extends Activity {
     }
 
     @Override
+    protected void onResume() {
+        super.onResume();
+        mainHandler.post(this::refreshOnlineState);
+    }
+
+    @Override
     public void onBackPressed() {
         if (gameView != null && gameView.canGoBack()) {
             gameView.goBack();
@@ -427,6 +571,14 @@ public class MainActivity extends Activity {
     @Override
     protected void onDestroy() {
         mainHandler.removeCallbacksAndMessages(null);
+        if (connectivityManager != null && networkCallback != null) {
+            try {
+                connectivityManager.unregisterNetworkCallback(networkCallback);
+            } catch (IllegalArgumentException ignored) {
+                // Callback was already removed by the system.
+            }
+            networkCallback = null;
+        }
         if (gameView != null) {
             gameView.stopLoading();
             gameView.destroy();

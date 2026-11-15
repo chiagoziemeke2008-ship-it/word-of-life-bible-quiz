@@ -43,12 +43,12 @@ import com.google.android.libraries.ads.mobile.sdk.interstitial.InterstitialAdEv
 public class MainActivity extends Activity {
     private static final String TAG = "WordOfLifeAds";
 
-    // Google's official demo app ID and rewarded test unit ID. Test ads never pay.
-    // Replace with the Word of Life app ID and rewarded unit ID from AdMob before release.
-    private static final String TEST_ADMOB_APP_ID =
-            "ca-app-pub-3940256099942544~3347511713";
-    private static final String TEST_REWARDED_AD_UNIT_ID =
-            "ca-app-pub-3940256099942544/5224354917";
+    // Word of Life AdMob app ID and rewarded ad unit created in the publisher account.
+    // Do not click or test live ads. Use Google's test ad units during development.
+    private static final String ADMOB_APP_ID =
+            "ca-app-pub-5491156476201135~4571929038";
+    private static final String REWARDED_AD_UNIT_ID =
+            "ca-app-pub-5491156476201135/5515143916";
     private static final String TEST_INTERSTITIAL_AD_UNIT_ID =
             "ca-app-pub-3940256099942544/1033173712";
 
@@ -243,13 +243,13 @@ public class MainActivity extends Activity {
     }
 
     private void initializeAds() {
-        updateStatus("Starting Google's rewarded test ad service…");
+        updateStatus("Starting Google's rewarded ad service…");
         new Thread(() -> MobileAds.initialize(
                 getApplicationContext(),
-                new InitializationConfig.Builder(TEST_ADMOB_APP_ID).build(),
+                new InitializationConfig.Builder(ADMOB_APP_ID).build(),
                 initializationStatus -> runOnUiThread(() -> {
                     Log.i(TAG, "Google Mobile Ads SDK initialization callback received.");
-                    updateStatus("Google ad service initialized. Preparing a rewarded test ad…");
+                    updateStatus("Google ad service initialized. Preparing a rewarded ad…");
                     loadRewardedAd();
                     loadInterstitialAd();
                 })
@@ -393,15 +393,15 @@ public class MainActivity extends Activity {
         updateStatus("Loading optional rewarded test ad…");
 
         RewardedAd.load(
-                new AdRequest.Builder(TEST_REWARDED_AD_UNIT_ID).build(),
+                new AdRequest.Builder(REWARDED_AD_UNIT_ID).build(),
                 new AdLoadCallback<RewardedAd>() {
                     @Override
                     public void onAdLoaded(@NonNull RewardedAd ad) {
                         runOnUiThread(() -> {
                             adLoadInProgress = false;
                             rewardedAd = ad;
-                            Log.i(TAG, "Rewarded test ad loaded successfully.");
-                            updateStatus("TEST AD LOADED. Tap WATCH AD FOR 1 HINT.");
+                            Log.i(TAG, "Rewarded ad loaded successfully.");
+                            updateStatus("Rewarded ad is ready. Tap WATCH AD FOR 1 HINT.");
                             if (pendingRewardedShow) {
                                 pendingRewardedShow = false;
                                 showRewardedAd();
@@ -415,7 +415,7 @@ public class MainActivity extends Activity {
                             adLoadInProgress = false;
                             rewardedAd = null;
                             String message = error.getMessage();
-                            Log.e(TAG, "Rewarded test ad failed to load (code " + error.getCode() + "): " + message);
+                            Log.e(TAG, "Rewarded ad failed to load (code " + error.getCode() + "): " + message);
                             pendingRewardedShow = false;
                             updateStatus("Rewarded ad unavailable (code " + error.getCode() + "): " + message);
                             notifyRewardedAdUnavailable("Rewarded video unavailable right now. Please try again shortly.");

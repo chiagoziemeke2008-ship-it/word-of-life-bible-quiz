@@ -49,8 +49,8 @@ public class MainActivity extends Activity {
             "ca-app-pub-5491156476201135~4571929038";
     private static final String REWARDED_AD_UNIT_ID =
             "ca-app-pub-5491156476201135/5515143916";
-    private static final String TEST_INTERSTITIAL_AD_UNIT_ID =
-            "ca-app-pub-3940256099942544/1033173712";
+    private static final String INTERSTITIAL_AD_UNIT_ID =
+            "ca-app-pub-5491156476201135/4212836388";
 
     private final Handler mainHandler = new Handler(Looper.getMainLooper());
     private ConnectivityManager connectivityManager;
@@ -64,7 +64,7 @@ public class MainActivity extends Activity {
     private InterstitialAd interstitialAd;
     private boolean interstitialLoadInProgress = false;
     private int pendingLevelEndAds = 0;
-    private String interstitialStatusMessage = "Preparing end-of-level test ad…";
+    private String interstitialStatusMessage = "Preparing end-of-level ad…";
     private boolean adLoadInProgress = false;
     private boolean pendingRewardedShow = false;
     private boolean gamePageLoaded = false;
@@ -264,18 +264,18 @@ public class MainActivity extends Activity {
         }
 
         interstitialLoadInProgress = true;
-        setInterstitialStatus("Loading end-of-level test ad…");
+        setInterstitialStatus("Loading end-of-level ad…");
 
         InterstitialAd.load(
-                new AdRequest.Builder(TEST_INTERSTITIAL_AD_UNIT_ID).build(),
+                new AdRequest.Builder(INTERSTITIAL_AD_UNIT_ID).build(),
                 new AdLoadCallback<InterstitialAd>() {
                     @Override
                     public void onAdLoaded(@NonNull InterstitialAd ad) {
                         runOnUiThread(() -> {
                             interstitialLoadInProgress = false;
                             interstitialAd = ad;
-                            Log.i(TAG, "Interstitial test ad loaded successfully.");
-                            setInterstitialStatus("End-of-level test ad is ready.");
+                            Log.i(TAG, "Interstitial ad loaded successfully.");
+                            setInterstitialStatus("End-of-level ad is ready.");
                             showPendingLevelEndAd();
                         });
                     }
@@ -328,18 +328,18 @@ public class MainActivity extends Activity {
         InterstitialAd ad = interstitialAd;
         interstitialAd = null;
         pendingLevelEndAds--;
-        setInterstitialStatus("Showing the normal full-screen test ad…");
+        setInterstitialStatus("Showing the normal full-screen ad…");
 
         ad.setAdEventCallback(new InterstitialAdEventCallback() {
             @Override
             public void onAdShowedFullScreenContent() {
                 runOnUiThread(() ->
-                        setInterstitialStatus("Normal full-screen test ad is showing."));
+                        setInterstitialStatus("Normal full-screen ad is showing."));
             }
 
             @Override
             public void onAdImpression() {
-                Log.i(TAG, "Interstitial test ad impression recorded.");
+                Log.i(TAG, "Interstitial ad impression recorded.");
             }
 
             @Override
@@ -439,8 +439,8 @@ public class MainActivity extends Activity {
         if (rewardedAd == null) {
             pendingRewardedShow = true;
             updateStatus(adLoadInProgress
-                    ? "The test ad is still loading. It will open automatically when ready."
-                    : "No test ad is ready. Loading it now; it will open automatically when ready…");
+                    ? "The rewarded ad is still loading. It will open automatically when ready."
+                    : "No rewarded ad is ready. Loading it now; it will open automatically when ready…");
             loadRewardedAd();
             return;
         }
@@ -448,12 +448,12 @@ public class MainActivity extends Activity {
         pendingRewardedShow = false;
         RewardedAd ad = rewardedAd;
         rewardedAd = null;
-        updateStatus("Opening the rewarded test ad…");
+        updateStatus("Opening the rewarded ad…");
 
         ad.setAdEventCallback(new RewardedAdEventCallback() {
             @Override
             public void onAdShowedFullScreenContent() {
-                runOnUiThread(() -> updateStatus("Rewarded test ad is playing…"));
+                runOnUiThread(() -> updateStatus("Rewarded ad is playing…"));
             }
 
             @Override
